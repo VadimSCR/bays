@@ -1,0 +1,78 @@
+# -*- coding: utf-8 -*-
+"""
+@author: Vadim
+"""
+
+import numpy as np
+from skimage.measure import label, regionprops
+import matplotlib.pyplot as plt
+
+def classify(region):
+    lakes, bays = lakes_and_bays(region.image)
+    if lakes == 0:
+        if bays == 0:
+            return '-'
+        elif bays == 2:
+            return '/'
+        elif bays == 3:
+            return '1'
+        elif bays == 4:
+            _, aux = lakes_and_bays(region.image[2:-2, 2:-2])
+            if aux == 4:
+                return 'X'
+            elif aux == 5:
+                return '*'
+        elif bays == 5:
+            h = region.image.shape[0] // 2
+            w = region.image.shape[1] // 2
+            if region.image[h, w]:
+                return '*'
+            else:
+                return 'W'
+    elif lakes == 1:
+        if bays == 2:
+            if region.image[-1, region.image.shape[1]//2]:
+                return 'D'
+            else:
+                return 'P'
+        elif bays == 3:
+            return 'A'
+        elif bays == 4:
+            return '0'
+    elif lakes == 2:
+        if bays == 2:
+            return 'B'
+        elif bays == 4:
+            return '8'
+    return None
+
+def lakes_and_bays(image):
+    binary_char = image == np.zeros_like(image)
+    labeled_char = label(binary_char)
+    char_regions = regionprops(labeled_char)
+    lakes, bays = 0, 0
+    for region in char_regions:
+        edge = False
+        for row, col in region.coords:
+            if col == 0 or col == image.shape[1]-1 or row == 0 or row == image.shape[0]-1:
+                edge = True
+                break
+        if edge:
+            bays += 1
+        else:
+            lakes += 1
+    return lakes, bays
+
+image = plt.imread('symbols.png')
+binary = np.sum(image, 2) > np.zeros_like(image[:,:,1])
+labeled = label(binary)
+regions = regionprops(labeled)
+
+classified, not_classified = 0, 0
+for region in regions:
+    char = classify(region)
+    if char is None:
+        not_classified += 1
+    else:
+        classified += 1
+print(f'Процент cимволов, которые распознаны: {(1. - not_classified/classified)*100}%')
